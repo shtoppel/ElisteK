@@ -1,22 +1,24 @@
 import sqlite3
 
+DB_NAME = 'shop.db'
 
 def init_db():
-    conn = sqlite3.connect('shop.db')
+    """Initializes the database and populates the products table if empty."""
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # 1. Table of all products
+    # 1. Products table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         name TEXT, 
         category TEXT, 
         emoji TEXT,
-        unit_type TEXT DEFAULT 'pc',
+        unit_type TEXT DEFAULT 'pcs',
         price FLOAT DEFAULT 0.0
     )""")
 
-    # 2. Table of the current shopping cart
+    # 2. Shopping cart table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS cart (
         user_id INTEGER, 
@@ -26,7 +28,7 @@ def init_db():
         PRIMARY KEY (user_id, product_id)
     )""")
 
-    # 3. Progress table (statistics)
+    # 3. Purchase history table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS purchase_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,9 +39,10 @@ def init_db():
         date TEXT
     )""")
 
-    # Fill with goods (executed when the database is empty)
+    # Check if products exist, if not, insert initial data
     cursor.execute("SELECT COUNT(*) FROM products")
     if cursor.fetchone()[0] == 0:
+        # Use simple category names: 'veg', 'fruits', etc.
         items = [
             # GEMÜSE 🥦
             (1, 'Kartoffeln', 'veg', '🥔', 'kg'), (2, 'Tomaten', 'veg', '🍅', 'kg'),
@@ -98,68 +101,57 @@ def init_db():
             (79, 'Waschmittel', 'hygiene', '🧺', 'pcs'), (80, 'Küchenrollen', 'hygiene', '🧻', 'pcs'),
             (81, 'Duschgel', 'hygiene', '🚿', 'pcs'), (82, 'Deo', 'hygiene', '🌬️', 'pcs')
         ]
-        cursor.execute("SELECT count(*) FROM products")
-        if cursor.fetchone()[0] == 0:
-            # There should be FIVE question marks here: (?, ?, ?, ?, ?)
-            cursor.executemany(
-                "INSERT INTO products (id, name, category, emoji, unit_type) VALUES (?, ?, ?, ?, ?)",
-                items
-            )
-            conn.commit()
-
-    conn.commit()
+        cursor.executemany(
+            "INSERT INTO products (id, name, category, emoji, unit_type) VALUES (?, ?, ?, ?, ?)",
+            items
+        )
+        conn.commit()
     conn.close()
 
-
-def get_products_by_cat(category):
-    conn = sqlite3.connect('shop.db')
+def get_products_by_cat(category_code):
+    """Fetches all products belonging to a specific category."""
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, emoji, unit_type FROM products WHERE category = ?", (category,))
+    cursor.execute("SELECT id, name, emoji, unit_type FROM products WHERE category = ?", (category_code,))
     data = cursor.fetchall()
     conn.close()
     return data
-
-
-def add_to_cart_smart(user_id, product_id):
-    conn = sqlite3.connect('shop.db')
-    cursor = conn.cursor()
-
-    # We determine the step to add
-    cursor.execute("SELECT name, unit_type FROM products WHERE id = ?", (product_id,))
-    res = cursor.fetchone()
-    name, unit = res[0], res[1]
-
-    if 'Eier' in name or name.lower() == 'Eier':
-        step = 10.0
-    elif unit == 'kg':
-        step = 0.5
-    else:
-        step = 1.0
-
-    cursor.execute("""
-    INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)
-    ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = quantity + ?
-    """, (user_id, product_id, step, step))
-
-    conn.commit()
-    conn.close()
-
 
 def get_cart_items(user_id):
     conn = sqlite3.connect('shop.db')
     cursor = conn.cursor()
-    # Important: We pull unit_type via JOIN to display it correctly in the list.
+    # Add p.category to SELECT and sorting at the end
     cursor.execute("""
-    SELECT p.id, p.name, p.emoji, c.quantity, c.is_bought, p.unit_type 
-    FROM cart c 
-    JOIN products p ON c.product_id = p.id 
-    WHERE c.user_id = ?""", (user_id,))
+        SELECT p.id, p.name, p.emoji, c.quantity, c.is_bought, p.unit_type, p.category 
+        FROM cart c 
+        JOIN products p ON c.product_id = p.id 
+        WHERE c.user_id = ?
+        ORDER BY p.category ASC, p.name ASC
+    """, (user_id,))
     data = cursor.fetchall()
     conn.close()
     return data
 
+def add_to_cart_smart(user_id, product_id):
+    """Adds product to cart or increments quantity with smart steps (0.5 for kg)."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name, unit_type FROM products WHERE id = ?", (product_id,))
+    res = cursor.fetchone()
+    name, unit = res[0], res[1]
+
+    step = 0.5 if unit == 'kg' else 1.0
+    if 'Eier' in name: step = 10.0
+
+    cursor.execute("""
+        INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)
+        ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = quantity + ?
+    """, (user_id, product_id, step, step))
+    conn.commit()
+    conn.close()
+
 def get_category_by_id(product_id):
-    conn = sqlite3.connect('shop.db')
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT category FROM products WHERE id = ?", (product_id,))
     res = cursor.fetchone()
@@ -167,42 +159,40 @@ def get_category_by_id(product_id):
     return res[0] if res else None
 
 def toggle_bought_status(user_id, product_id):
-    conn = sqlite3.connect('shop.db')
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("UPDATE cart SET is_bought = 1 - is_bought WHERE user_id = ? AND product_id = ?",
-                   (user_id, product_id))
+    cursor.execute("UPDATE cart SET is_bought = 1 - is_bought WHERE user_id = ? AND product_id = ?", (user_id, product_id))
     conn.commit()
     conn.close()
-
 
 def delete_from_cart(user_id, product_id):
-    conn = sqlite3.connect('shop.db')
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM cart WHERE user_id = ? AND product_id = ?", (user_id, product_id))
+    # Instead of DELETE, we do UPDATE. Status -1 will mean “removed from the list.”
+    cursor.execute("UPDATE cart SET is_bought = -1 WHERE user_id = ? AND product_id = ?", (user_id, product_id))
     conn.commit()
     conn.close()
 
-
 def save_to_history(user_id):
-    conn = sqlite3.connect('shop.db')
+    """Moves bought items to history and clears the cart."""
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-
-    # Transfer only items marked with a check mark
     cursor.execute("""
         INSERT INTO purchase_history (user_id, product_name, quantity, date)
         SELECT c.user_id, p.name, c.quantity, datetime('now')
         FROM cart c JOIN products p ON c.product_id = p.id
         WHERE c.user_id = ? AND c.is_bought = 1
     """, (user_id,))
-
-    # We delete absolutely everything from this user's cart.
     cursor.execute("DELETE FROM cart WHERE user_id = ?", (user_id,))
-
     conn.commit()
     conn.close()
 
 def clear_cart(user_id):
-    conn = sqlite3.connect('shop.db')
+    """
+    Completely removes all items from a specific user's cart.
+    Used for the 'Clear List' functionality.
+    """
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM cart WHERE user_id = ?", (user_id,))
     conn.commit()
