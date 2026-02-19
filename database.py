@@ -1,4 +1,5 @@
 import sqlite3
+from thefuzz import process, fuzz
 
 DB_NAME = 'shop.db'
 
@@ -99,7 +100,24 @@ def init_db():
             (75, 'Seife', 'hygiene', '🧼', 'pcs'), (76, 'Shampoo', 'hygiene', '🧴', 'pcs'),
             (77, 'Zahnpasta', 'hygiene', '🪥', 'pcs'), (78, 'Toilettenpapier', 'hygiene', '🧻', 'pcs'),
             (79, 'Waschmittel', 'hygiene', '🧺', 'pcs'), (80, 'Küchenrollen', 'hygiene', '🧻', 'pcs'),
-            (81, 'Duschgel', 'hygiene', '🚿', 'pcs'), (82, 'Deo', 'hygiene', '🌬️', 'pcs')
+            (81, 'Duschgel', 'hygiene', '🚿', 'pcs'), (82, 'Deo', 'hygiene', '🌬️', 'pcs'),
+
+            # Tiefkühlkost
+            (83, 'Pelmeni', 'tiefkühlkost', '🥟', 'kg'), (84, 'Pizza', 'tiefkühlkost', '🍕', 'st'),
+            (85, 'Pommes', 'tiefkühlkost', '🍟', 'kg'),  (86, 'Nuggets', 'tiefkühlkost', '🥡', 'kg'),
+            (87, 'Burger', 'tiefkühlkost', '🍔', 'st'),
+
+            # Konserven
+            (88, 'Thunfisch', 'konserven', '🫙', 'st'),
+            (89, 'Dose Erbsen', 'konserven', '🫛', 'st'),
+            (90, 'Dosenmais', 'konserven', '🌽', 'st'),
+            (91, 'Gewürzgurken', 'konserven', '🥒', 'st'),  # Была ошибка тут
+            (92, 'Konservierte Tomaten', 'konserven', '🥫', 'st'),
+            (93, 'Oliven', 'konserven', '🫒', 'st'),
+            (94, 'Sprotten', 'konserven', '🐟', 'st'),  # Добавил рыбку 🐟
+            (95, 'Bohnen', 'konserven', '🫘', 'st'),
+            (96, 'Kondensmilch', 'konserven', '🫙', 'st'),
+            (97, 'Pastete', 'konserven', '🫙', 'st')
         ]
         cursor.executemany(
             "INSERT INTO products (id, name, category, emoji, unit_type) VALUES (?, ?, ?, ?, ?)",
@@ -132,21 +150,23 @@ def get_cart_items(user_id):
     conn.close()
     return data
 
-def add_to_cart_smart(user_id, product_id):
-    """Adds product to cart or increments quantity with smart steps (0.5 for kg)."""
+
+def add_to_cart_smart(user_id, product_id, quantity=1.0): # Используем 1.0 по умолчанию
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT name, unit_type FROM products WHERE id = ?", (product_id,))
-    res = cursor.fetchone()
-    name, unit = res[0], res[1]
 
-    step = 0.5 if unit == 'kg' else 1.0
-    if 'Eier' in name: step = 10.0
+    # Checking the current quantity
+    cursor.execute("SELECT quantity FROM cart WHERE user_id = ? AND product_id = ?", (user_id, product_id))
+    result = cursor.fetchone()
 
-    cursor.execute("""
-        INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)
-        ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = quantity + ?
-    """, (user_id, product_id, step, step))
+    if result:
+        # We add (for example, 0.5 + 0.5 becomes 1.0)
+        new_quantity = result[0] + float(quantity)
+        cursor.execute("UPDATE cart SET quantity = ? WHERE user_id = ? AND product_id = ?",
+                       (new_quantity, user_id, product_id))
+    else:
+        cursor.execute("INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)",
+                       (user_id, product_id, float(quantity)))
     conn.commit()
     conn.close()
 
@@ -197,3 +217,55 @@ def clear_cart(user_id):
     cursor.execute("DELETE FROM cart WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()
+
+def find_product_smart(user_input):
+    conn = sqlite3.connect('shop.db')
+    cursor = conn.cursor()
+
+    # We receive all goods from the warehouse
+    cursor.execute("SELECT id, name FROM products")
+    all_products = cursor.fetchall()  # Список кортежей [(1, 'Яблоки'), (2, 'Хлеб')]
+    conn.close()
+
+    #1. Trying to find an exact match
+    for p_id, p_name in all_products:
+        if p_name.lower() == user_input.lower():
+            return p_id
+
+    #2. If you can't find it, look for something similar (80% match threshold).
+    names = [p[1] for p in all_products]
+    best_match, score = process.extractOne(user_input, names, scorer=fuzz.WRatio)
+
+    if score > 80:
+        # Find the ID of this best match
+        for p_id, p_name in all_products:
+            if p_name == best_match:
+                return p_id
+
+    return None
+
+
+def add_unknown_to_cart(user_id, item_name, quantity=1):
+    conn = sqlite3.connect('shop.db')
+    cursor = conn.cursor()
+
+    # Check if such a “custom” product already exists.
+    # Use the category ‘other’ (make sure it is a string, not the number 999).
+    cursor.execute("SELECT id FROM products WHERE name = ? AND category = 'other'", (item_name,))
+    result = cursor.fetchone()
+
+    if result:
+        product_id = result[0]
+    else:
+        # Add a new product. Columns: name, category, emoji, unit_type
+        cursor.execute(
+            "INSERT INTO products (name, category, emoji, unit_type) VALUES (?, ?, ?, ?)",
+            (item_name, 'other', '📝', 'st')
+        )
+        product_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+
+    # Add to cart
+    add_to_cart_smart(user_id, product_id, quantity)

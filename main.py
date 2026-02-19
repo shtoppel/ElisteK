@@ -1,14 +1,16 @@
 import telebot
 from telebot import types
 from database import init_db, get_products_by_cat, get_cart_items, clear_cart, toggle_bought_status, \
-    delete_from_cart, save_to_history, add_to_cart_smart, get_category_by_id
+    delete_from_cart, save_to_history, add_to_cart_smart, get_category_by_id, find_product_smart, add_unknown_to_cart
 import keyboards as kb
 from dotenv import load_dotenv
 import os
+import re
 
 load_dotenv()
 TOKEN = os.getenv('BOT_TOKEN')
 bot = telebot.TeleBot(TOKEN)
+last_list_msg = {}
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -41,14 +43,24 @@ def handle_query(call):
     # 2. Adding a product
     elif call.data.startswith('add_'):
         p_id = int(call.data.split('_')[1])
-        add_to_cart_smart(user_id, p_id)
         category = get_category_by_id(p_id)
+
+        # --- LOGIC OF THE DEFAULT STEP ---
+        if p_id == 54:  # Яйца
+            step = 10.0
+        elif category in ['veg', 'meat']:  # Овощи и Мясо по 0.5 кг
+            step = 0.5
+        else:
+            step = 1.0
+
+        add_to_cart_smart(user_id, p_id, step)
+        # -------------------------------
+
         products = get_products_by_cat(category)
-        cart = get_cart_items(user_id)  # Getting the full list
-        # Pass 'cart' (list)
+        cart = get_cart_items(user_id)
         bot.edit_message_reply_markup(chat_id=user_id, message_id=msg_id,
                                       reply_markup=kb.products_menu(products, cart))
-        bot.answer_callback_query(call.id, "Hinzugefügt!")
+        bot.answer_callback_query(call.id, f"Hinzugefügt: +{step}")
 
     # 3. Show list
     elif call.data == "show_cart":
@@ -103,7 +115,6 @@ def handle_query(call):
         bot.answer_callback_query(call.id, "Gelöscht")
 
     # 7. FINISH
-        # 7. FINISH (completion)
     elif call.data.startswith('finish_shared_') or call.data in ["finish_list", "complete_shopping"]:
         if call.data.startswith('finish_shared_'):
             owner_id = int(call.data.split('_')[2])
@@ -117,7 +128,6 @@ def handle_query(call):
             return
 
         # 2. Generate the report text
-            # Report generation
         bought_text, skipped_text = "", ""
         for item in cart:
             # item[4] — это статус is_bought
@@ -156,8 +166,8 @@ def handle_query(call):
             # Button for a new list
             bot.send_message(
                 user_id,
-                "$$$$$$$$$$$$$$",
-                reply_markup=kb.start_new_menu()  # Используем готовую функцию
+                "🏁🏁🏁🏁🏁🏁🏁🏁🏁",
+                reply_markup=kb.start_new_menu()  # Using a ready-made function
             )
 
         bot.answer_callback_query(call.id, "Fertig!")
@@ -177,3 +187,79 @@ def query_text(inline_query):
     )
     bot.answer_inline_query(inline_query.id, [result], cache_time=1)
 
+
+@bot.message_handler(func=lambda message: message.text and message.text.startswith('#'))
+def handle_quick_add(message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    global last_list_msg
+
+    input_text = message.text[1:].strip()
+    if not input_text: return
+
+    # We sort the goods (logic with a weight of 0.5 and 10 eggs remains inside)
+    raw_items = [i.strip() for i in input_text.replace('\n', ',').split(',') if i.strip()]
+
+    for item_raw in raw_items:
+        quantity = None
+
+        # Regular expression to search for a number at the END of a line (e.g., “milch 2” or “lachs 0.5”)
+        # It is looking for the number that comes after the space at the end.
+        match_end = re.search(r'(.*?)\s+(\d+[.,]?\d*)$', item_raw)
+
+        # Regular expression to search for a number at the BEGINNING (leave it for flexibility, e.g., “2 milch”)
+        match_start = re.match(r'^(\d+[.,]?\d*)\s*(.*)', item_raw)
+
+        if match_end:
+            item_name = match_end.group(1).strip()
+            quantity = float(match_end.group(2).replace(',', '.'))
+        elif match_start:
+            quantity = float(match_start.group(1).replace(',', '.'))
+            item_name = match_start.group(2).strip()
+        else:
+            item_name = item_raw.strip()
+
+        # Search in database
+        product_id = find_product_smart(item_name)
+
+        if product_id:
+            # If there are no numbers, we apply default rules (eggs = 10, vegetables = 0.5)
+            if quantity is None:
+                cat = get_category_by_id(product_id)
+                if product_id == 54:
+                    quantity = 10.0
+                elif cat in ['veg', 'meat']:
+                    quantity = 0.5
+                else:
+                    quantity = 1.0
+
+            add_to_cart_smart(user_id, product_id, quantity)
+        else:
+            # For new products
+            if quantity is None: quantity = 1.0
+            add_unknown_to_cart(user_id, item_name, quantity)
+
+    # --- WORKING WITH THE UI ---
+
+    # 1. Try to delete the PREVIOUS bot list (if there was one)
+    if user_id in last_list_msg:
+        try:
+            bot.delete_message(chat_id, last_list_msg[user_id])
+        except:
+            pass  # If already deleted or unavailable
+
+    # 2. Generate updated list menus
+    cart = get_cart_items(user_id)
+    if not cart:
+        return
+
+    msg_text = "🛒 **Aktuelle Einkaufsliste:**\n\n"
+    for item in cart:
+        # item[4] - is_bought, item[2] - emoji, item[1] - name, item[3] - quantity, item[5] - unit
+        status = "✅" if item[4] == 1 else "⬜"
+        # Format the number nicely (remove .0)
+        display_qty = int(item[3]) if item[3] % 1 == 0 else item[3]
+
+    # 3. Send the new list and SAVE its ID
+    sent_msg = bot.send_message(chat_id, msg_text, parse_mode="Markdown", reply_markup=kb.final_cart_menu(cart))
+    last_list_msg[user_id] = sent_msg.message_id

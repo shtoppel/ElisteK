@@ -8,11 +8,13 @@ def main_menu(count=0):
         ('Gemüse 🥦', 'cat_veg'), ('Obst 🍎', 'cat_fruits'),
         ('Fleisch 🥩', 'cat_meat'), ('Backwaren 🥐', 'cat_bakery'),
         ('Milchprodukte 🥛', 'cat_dairy'), ('Getränke 🥤', 'cat_drinks'),
-        ('Süßigkeiten 🍫', 'cat_sweets'), ('Hygiene 🧼', 'cat_hygiene')
+        ('Süßigkeiten 🍫', 'cat_sweets'), ('Tiefkühlkost ❄️', 'cat_tiefkühlkost'),
+        ('Konserven 🥫', 'cat_konserven'),
+        ('Hygiene 🧼', 'cat_hygiene')
     ]
     markup.add(*[types.InlineKeyboardButton(text=c[0], callback_data=c[1]) for c in cats])
 
-    cart_btn_text = f"🛒 Liste anzeigen ({count})" if count > 0 else "🛒 Liste anzeigen"
+    cart_btn_text = f"🛒 Warenkorb ({count})" if count > 0 else "🛒 Warenkorb (0)"
     markup.row(types.InlineKeyboardButton(text=cart_btn_text, callback_data="show_cart"))
     markup.row(
         types.InlineKeyboardButton(text="🧹 Löschen", callback_data="clear_confirm"),
@@ -21,7 +23,7 @@ def main_menu(count=0):
     return markup
 
 def products_menu(products_list, user_cart):
-    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup = types.InlineKeyboardMarkup(row_width=2)
     # Create a dictionary for quick lookup: {product_id: quantity}
     cart_data = {item[0]: item[3] for item in user_cart}
 
@@ -46,7 +48,7 @@ def products_menu(products_list, user_cart):
 def final_cart_menu(cart_items):
     markup = types.InlineKeyboardMarkup()
 
-    # Словарь для красивых названий заголовков
+    # Dictionary for beautiful headline titles
     cat_names = {
         'veg': '🥦 GEMÜSE',
         'fruits': '🍎 OBST',
@@ -55,6 +57,8 @@ def final_cart_menu(cart_items):
         'dairy': '🥛 MILCHPRODUKTE',
         'drinks': '🥤 GETRÄNKE',
         'sweets': '🍫 SÜSSIGKEITEN',
+        'tiefkühlkost': '❄️ TIEFKÜHLKOST',
+        'konserven': '🥫 KONSERVEN',
         'hygiene': '🧼 HYGIENE'
     }
 
@@ -104,7 +108,9 @@ def shared_cart_menu(cart_items, owner_id):
     cat_names = {
         'veg': '🥦 GEMÜSE', 'fruits': '🍎 OBST', 'meat': '🥩 FLEISCH',
         'bakery': '🥐 BACKWAREN', 'dairy': '🥛 MILCHPRODUKTE',
-        'drinks': '🥤 GETRÄNKE', 'sweets': '🍫 SÜSSIGKEITEN', 'hygiene': '🧼 HYGIENE'
+        'drinks': '🥤 GETRÄNKE', 'sweets': '🍫 SÜSSIGKEITEN',
+        'tiefkühlkost': '❄️ TIEFKÜHLKOST', 'konserven': '🥫 KONSERVEN',
+        'hygiene': '🧼 HYGIENE',
     }
 
     current_cat = None
