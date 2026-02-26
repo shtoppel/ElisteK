@@ -19,6 +19,31 @@ def start(message):
     cart = get_cart_items(message.from_user.id)
     bot.send_message(message.chat.id, "Wählen Sie eine Kategorie:", reply_markup=kb.main_menu(len(cart)))
 
+
+@bot.message_handler(commands=['info', 'help'])
+def send_instructions(message):
+    instructions = (
+        "📖 *Bedienungsanleitung für deinen Einkaufshelfer*\n\n"
+        "🛒 *Produkte hinzufügen:*\n"
+        "1. Nutze das **Menü**, um Kategorien und Produkte per Klick auszuwählen.\n"
+        "2. Nutze den **Schnell-Modus** mit dem Raute-Symbol `#` (am schnellsten).\n\n"
+        "⚡ *Schnell-Modus (#)*\n"
+        "Schreibe einfach eine Nachricht, die mit `#` beginnt. Der Bot erkennt Produkte und Mengen automatisch.\n\n"
+        "🔹 *Beispiele für die Eingabe:*\n"
+        "• `#Milch` — fügt 1 Liter (oder 1 Stk.) hinzu.\n"
+        "• `#Milch 2` — fügt 2 Liter hinzu.\n"
+        "• `#Tomaten 0.5` — fügt ein halbes Kilo hinzu.\n"
+        "• `#Brot, Käse, Salami` — Mehrere Artikel durch Komma getrennt.\n"
+        "• `#Gurken 3, Wasser 5, Eier` — Mengen für jeden Artikel einzeln angeben.\n\n"
+        "💡 *Intelligente Voreinstellungen:*\n"
+        "• **Gemüse & Fleisch:** Wenn keine Menge angegeben wird, fügt der Bot automatisch `0.5 kg` hinzu.\n"
+        "• **Eier:** Ohne Mengenangabe werden automatisch `10 Stk.` hinzugefügt.\n\n"
+        "🗑 *Verwaltung:* \n"
+        "Nach jeder Eingabe schickt der Bot die aktuelle Liste. Alte Listen werden automatisch gelöscht, um den Chat sauber zu halten."
+    )
+
+    bot.reply_to(message, instructions, parse_mode="Markdown")
+
 @bot.callback_query_handler(func=lambda call: True)
 def handle_query(call):
     user_id = call.from_user.id
