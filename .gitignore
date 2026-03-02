@@ -1,7 +1,8 @@
 # created by virtualenv automatically
 .venv/Lib
 .env
-shopping_list.db
 __pycache__/
 .venv/
 .idea/
+*.db
+.db

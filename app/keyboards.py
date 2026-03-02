@@ -1,7 +1,6 @@
 from telebot import types
 
 
-# Main menu with category selection and cart overview
 def main_menu(count=0):
     markup = types.InlineKeyboardMarkup(row_width=2)
     cats = [
@@ -17,7 +16,7 @@ def main_menu(count=0):
     cart_btn_text = f"🛒 Warenkorb ({count})" if count > 0 else "🛒 Warenkorb (0)"
     markup.row(types.InlineKeyboardButton(text=cart_btn_text, callback_data="show_cart"))
     markup.row(
-        types.InlineKeyboardButton(text="🧹 Löschen", callback_data="clear_confirm"),
+        types.InlineKeyboardButton(text="🧹 Alles Löschen", callback_data="clear_confirm"),
         types.InlineKeyboardButton(text="✅ Beenden", callback_data="finish_list")
     )
     return markup
@@ -25,12 +24,10 @@ def main_menu(count=0):
 
 def products_menu(products_list, user_cart):
     markup = types.InlineKeyboardMarkup(row_width=2)
-    # Create a dictionary for quick lookup: {product_id: quantity}
     cart_data = {item[0]: item[3] for item in user_cart}
 
     for p_id, name, emoji, unit in products_list:
         text = f"{emoji} {name}"
-        # If product is in cart, add a checkmark and quantity label
         if p_id in cart_data:
             qty = cart_data[p_id]
             unit_name = "kg" if unit == "kg" else "l" if unit == "liter" else "st"
@@ -56,8 +53,12 @@ def final_cart_menu(cart_items, edit_mode=False, delete_mode=False, selected=Non
         'hygiene': '🧼 HYGIENE', 'other': '📝 ANDERES'
     }
 
-    # после фикса в get_cart_items сюда уже не попадут -1, но оставим на всякий
     active_items = [item for item in cart_items if item[4] != -1]
+
+    # Header for delete mode
+    if delete_mode and not edit_mode:
+        markup.row(types.InlineKeyboardButton(text="🗑️ LÖSCHMODUS:", callback_data="none"))
+        markup.row(types.InlineKeyboardButton(text="Wähle Artikel zum Löschen aus:", callback_data="none"))
 
     if not edit_mode:
         grouped = {}
@@ -78,7 +79,7 @@ def final_cart_menu(cart_items, edit_mode=False, delete_mode=False, selected=Non
                 u_label = "kg" if unit_type == "kg" else "l" if unit_type == "liter" else "st"
 
                 if delete_mode:
-                    mark = "❌" if p_id in selected else "▫️"
+                    mark = "❌️" if p_id in selected else "▫️"
                     btn_text = f"{mark} {emoji}{name[:10]} {display_qty}{u_label}"
                     cb = f"sel_del_{p_id}"
                 else:
@@ -94,9 +95,6 @@ def final_cart_menu(cart_items, edit_mode=False, delete_mode=False, selected=Non
                 else:
                     markup.row(row_btns[i])
 
-        # bottom
-        markup.row(types.InlineKeyboardButton(text="🚀 LISTE SENDEN", switch_inline_query="share"))
-
         if delete_mode:
             n = len(selected)
             if confirm_delete:
@@ -105,12 +103,12 @@ def final_cart_menu(cart_items, edit_mode=False, delete_mode=False, selected=Non
                     types.InlineKeyboardButton(text="↩️ Nein", callback_data="del_confirm_no"),
                 )
             else:
-                markup.row(types.InlineKeyboardButton(text=f"❌ Löschen ({n})", callback_data="del_selected"))
+                markup.row(types.InlineKeyboardButton(text=f"🧹 Löschen ({n})", callback_data="del_selected"))
 
             markup.row(types.InlineKeyboardButton(text="↩️ Abbrechen", callback_data="del_cancel"))
 
         else:
-            markup.row(types.InlineKeyboardButton(text="❌ Entfernungsmod", callback_data="del_mode"))
+            markup.row(types.InlineKeyboardButton(text="🗑️ Entfernen (Auswahl)", callback_data="del_mode"))
 
             if any(item[4] == 1 for item in active_items):
                 markup.row(types.InlineKeyboardButton(
@@ -118,13 +116,14 @@ def final_cart_menu(cart_items, edit_mode=False, delete_mode=False, selected=Non
                     callback_data="mode_edit"
                 ))
 
+            markup.row(types.InlineKeyboardButton(text="🚀 LISTE SENDEN", switch_inline_query="share"))
+
             markup.row(
                 types.InlineKeyboardButton(text="➕ Kategorien", callback_data="back_to_main"),
                 types.InlineKeyboardButton(text="🏁 ABSCHLIESSEN", callback_data="complete_shopping")
             )
 
     else:
-        # EDIT MODE твой как был
         markup.row(types.InlineKeyboardButton(text="⚙️ MENGEN ANPASSEN:", callback_data="none"))
         checked_items = [item for item in active_items if item[4] == 1]
 
@@ -169,9 +168,7 @@ def shared_cart_menu(cart_items, owner_id):
     grouped = {}
     for item in active_items:
         cat = item[6]
-        if cat not in grouped:
-            grouped[cat] = []
-        grouped[cat].append(item)
+        grouped.setdefault(cat, []).append(item)
 
     for cat_code, header in cat_names.items():
         if cat_code not in grouped:
@@ -179,14 +176,12 @@ def shared_cart_menu(cart_items, owner_id):
 
         markup.row(types.InlineKeyboardButton(text=f"── {header} ──", callback_data="none"))
 
-        items = grouped[cat_code]
         row_btns = []
-        for item in items:
+        for item in grouped[cat_code]:
             p_id, name, emoji, qty, status, unit, _ = item
             unit_name = "kg" if unit == "kg" else "l" if unit == "liter" else "st"
             display_qty = int(qty) if qty % 1 == 0 else qty
             check = "✅" if status == 1 else "▫️"
-
             btn_text = f"{check} {emoji}{name[:9]} {display_qty}{unit_name}"
 
             row_btns.append(types.InlineKeyboardButton(

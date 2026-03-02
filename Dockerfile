@@ -1,17 +1,26 @@
-# Use the official lightweight Python image
+# Lightweight Python image
 FROM python:3.11-slim
 
-# Set the working directory inside the container
+# Prevent Python from buffering stdout/stderr
+ENV PYTHONUNBUFFERED=1
+
+# Set working directory
 WORKDIR /app
 
-# Copy the requirements file first to leverage Docker cache
+# Install system dependencies (если позже понадобится Pillow/ocr — пригодится)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (Docker cache optimization)
 COPY requirements.txt .
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Upgrade pip and install dependencies
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Copy project
 COPY . .
 
-# Command to run the bot
-CMD ["python", "run.py"]
+# Start bot
+CMD ["python", "main.py"]
