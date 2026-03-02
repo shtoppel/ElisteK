@@ -14,14 +14,14 @@ Try it here:
 
 ### ✨ Features
 
-📂 Category menu (80+ products)
-⚖️ Smart units (kg / liter / pieces)
-⚡ Quick add via #
-✏️ Edit quantities
-❌ Delete mode with confirmation
-✅ Mark as bought
-🚀 Inline sharing
-🏁 Final summary report
+*📂 Category menu (80+ products)
+*⚖️ Smart units (kg / liter / pieces)
+*⚡ Quick add via #
+*✏️ Edit quantities
+*❌ Delete mode with confirmation
+*✅ Mark as bought
+*🚀 Inline sharing
+*🏁 Final summary report
 
 ### 🚀 Setup:
 1. Clone the repo.
@@ -35,13 +35,13 @@ Try it here:
 **ElisteK** ist ein kollaborativer Telegram-Bot 🤖, der den Lebensmitteleinkauf einfach und organisiert macht.
 
 ### ✨ Funktionen
-📂 Kategorienmenü
-⚖️ Smarte Einheiten
-⚡ Schnellmodus #
-✏️ Mengen anpassen
-❌ Löschmodus mit Bestätigung
-🚀 Inline-Teilen
-🏁 Abschlussbericht
+*📂 Kategorienmenü
+*⚖️ Smarte Einheiten
+*⚡ Schnellmodus #
+*✏️ Mengen anpassen
+*❌ Löschmodus mit Bestätigung
+*🚀 Inline-Teilen
+*🏁 Abschlussbericht
 
 ### 🚀 Installation:
 1. Repo klonen.
