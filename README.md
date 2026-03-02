@@ -1,6 +1,6 @@
 # 🛒 ElisteK - Smart Shopping List Bot
 
-
+Live: https://t.me/ElisteKbot
 
 ## Languages / Sprachen
 * [English](#english)
