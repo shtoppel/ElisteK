@@ -9,7 +9,7 @@
 ---
 
 ## English
-**ElisteK** is a collaborative Telegram bot designed to make grocery shopping easy and organized.
+**ElisteK** is a collaborative Telegram bot 🤖 designed to make grocery shopping easy and organized.
 
 ### ✨ Features:
 * **Interactive Menu:** Browse 80+ pre-filled products by categories (Vegetables, Meat, Dairy, etc.).
