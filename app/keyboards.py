@@ -9,6 +9,7 @@ def main_menu(count=0):
         ('Milchprodukte 🥛', 'cat_dairy'), ('Getränke 🥤', 'cat_drinks'),
         ('Süßigkeiten 🍫', 'cat_sweets'), ('Tiefkühlkost ❄️', 'cat_tiefkühlkost'),
         ('Konserven 🥫', 'cat_konserven'),
+        ('Trockenwaren 🌾🍝', 'cat_trockenwaren'), ('Gewürze 🧂', 'cat_gewuerze'),
         ('Hygiene 🧼', 'cat_hygiene')
     ]
     markup.add(*[types.InlineKeyboardButton(text=c[0], callback_data=c[1]) for c in cats])
@@ -50,7 +51,7 @@ def final_cart_menu(cart_items, edit_mode=False, delete_mode=False, selected=Non
         'veg': '🥦 GEMÜSE', 'fruits': '🍎 OBST', 'meat': '🥩 FLEISCH',
         'bakery': '🥐 BACKWAREN', 'dairy': '🥛 MILCHPRODUKTE', 'drinks': '🥤 GETRÄNKE',
         'sweets': '🍫 SÜSSIGKEITEN', 'tiefkühlkost': '❄️ TK', 'konserven': '🥫 DOSEN',
-        'hygiene': '🧼 HYGIENE', 'other': '📝 ANDERES'
+        'hygiene': '🧼 HYGIENE', 'trockenwaren': '🌾🍝 TROCKENWAREN', 'gewuerze': '🧂 GEWÜRZE', 'other': '📝 ANDERES'
     }
 
     active_items = [item for item in cart_items if item[4] != -1]
@@ -160,7 +161,7 @@ def shared_cart_menu(cart_items, owner_id):
         'bakery': '🥐 BACKWAREN', 'dairy': '🥛 MILCHPRODUKTE',
         'drinks': '🥤 GETRÄNKE', 'sweets': '🍫 SÜSSIGKEITEN',
         'tiefkühlkost': '❄️ TK', 'konserven': '🥫 DOSEN',
-        'hygiene': '🧼 HYGIENE', 'other': '📝 ANDERES'
+        'hygiene': '🧼 HYGIENE', 'trockenwaren': '🌾🍝 TROCKENWAREN', 'gewuerze': '🧂 GEWÜRZE', 'other': '📝 ANDERES'
     }
 
     active_items = [item for item in cart_items if item[3] > 0 and item[4] != -1]
